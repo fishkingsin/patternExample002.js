@@ -7,44 +7,160 @@
 	</style>
 </head>
 <body>
-	<script src="js/dat.gui.min.js"></script>
-	<script src="js/three.min.js"></script>
+	<script src="js/libs/dat.gui.min.js"></script>
+	<script src="js/libs/three.min.js"></script>
+	<script src="js/libs/stats.min.js"></script>
 	<script>
+	var stats;
+	var gui;
+	var scene,sceneCube;
+	var camera,cameraCube;
 
-
-	var obj = { x: 5 };
-	var gui = new dat.GUI();
-	var scene = new THREE.Scene();
-	var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-
-	var renderer = new THREE.WebGLRenderer();
-	var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-	var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-	var cube = new THREE.Mesh( geometry, material );
-	init();
-	function init()
+	var renderer;
+	var geometry;
+	var material;
+	var cube;
+	var GuiObject = function()
 	{
+		this.speed = 0.1;
+	}
+	
+//mouse position callback
+	var mouseX = 0;
+	var mouseY = 0;
+	var windowHalfX = window.innerWidth / 2;
+	var windowHalfY = window.innerHeight / 2;
+	document.addEventListener('mousemove', onDocumentMouseMove, false);
 
-		gui.add(obj, 'x');	
+//texture
+	
+//material
+	
 
+	window.onload = function() {
+		init();
+		animate();
+	}
+	var guiObject;
+	function setupUtils()
+	{
+		guiObject = new GuiObject();
+		gui = new dat.GUI();
+		gui.add(guiObject, 'speed', 0,1);	
+		stats = new Stats();
+		stats.domElement.style.position = 'absolute';
+		stats.domElement.style.top = '0px';
+		stats.domElement.style.zIndex = 100;
+		document.body.appendChild( stats.domElement );
+	}
+	function setupScene()
+	{
+		scene = new THREE.Scene();
+		sceneCube = new THREE.Scene();
+		camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 5000 );
+		cameraCube = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 100 );
+		camera.position.z = 2000;
+		renderer = new THREE.WebGLRenderer();
 		renderer.setSize( window.innerWidth, window.innerHeight );
 		document.body.appendChild( renderer.domElement );
-
-
-		scene.add( cube );
-
-		camera.position.z = 5;
 	}
-	var render = function () {
-		requestAnimationFrame( render );
 
-		cube.rotation.x += 0.1;
-		cube.rotation.y += 0.1;
+	function setupMesh()
+	{
+		geometry = new THREE.BoxGeometry( 100, 100, 100 );
+		material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+		cube = new THREE.Mesh( geometry, material );	
+		scene.add( cube );
+	}
+	function setupEnvScene()
+	{
+		var path = "textures/cube/SwedishRoyalCastle/";
+		var format = '.jpg';
+		var urls = [
+				path + 'px' + format, path + 'nx' + format,
+				path + 'py' + format, path + 'ny' + format,
+				path + 'pz' + format, path + 'nz' + format
+			];
 
+		var reflectionCube = THREE.ImageUtils.loadTextureCube( urls );
+		reflectionCube.format = THREE.RGBFormat;
+
+		var refractionCube = new THREE.CubeTexture( reflectionCube.image, THREE.CubeRefractionMapping );
+		refractionCube.format = THREE.RGBFormat;
+
+		var shader = THREE.ShaderLib[ "cube" ];
+		shader.uniforms[ "tCube" ].value = reflectionCube;
+		var material = new THREE.ShaderMaterial( {
+
+					fragmentShader: shader.fragmentShader,
+					vertexShader: shader.vertexShader,
+					uniforms: shader.uniforms,
+					depthWrite: false,
+					side: THREE.BackSide
+
+				} ),
+
+		mesh = new THREE.Mesh( new THREE.BoxGeometry( 100, 100, 100 ), material );
+		sceneCube.add( mesh );
+
+
+	}
+	function init()
+	{
+		setupUtils();
+		setupScene();
+		setupMesh();
+		setupEnvScene();
+		
+		
+		// camera.position.z = 5;
+
+		
+		
+		window.addEventListener( 'resize', onWindowResize, false );
+	}
+	function onWindowResize() {
+
+		windowHalfX = window.innerWidth / 2;
+		windowHalfY = window.innerHeight / 2;
+
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+
+		cameraCube.aspect = window.innerWidth / window.innerHeight;
+		cameraCube.updateProjectionMatrix();
+
+		renderer.setSize( window.innerWidth, window.innerHeight );
+
+	}
+	function onDocumentMouseMove(event) {
+
+		mouseX = ( event.clientX - windowHalfX ) * 4;
+		mouseY = ( event.clientY - windowHalfY ) * 4;
+
+	}
+
+	function animate() {
+
+		requestAnimationFrame( animate );
+
+		render();
+		stats.update();
+
+	}
+	function render() {
+		camera.position.x += ( mouseX - camera.position.x ) * .05;
+		camera.position.y += ( - mouseY - camera.position.y ) * .05;
+
+		camera.lookAt( scene.position );
+		cameraCube.rotation.copy( camera.rotation );
+
+
+		renderer.render( sceneCube, cameraCube );
 		renderer.render(scene, camera);
 	};
 
-	render();
+	
 	</script>
 </body>
 </html>
